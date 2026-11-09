@@ -79,16 +79,44 @@ export async function lerArquivo(arquivo: File): Promise<Aba[]> {
   return [{ nome: arquivo.name, tabela: lerTexto(decodificar(await arquivo.arrayBuffer())) }]
 }
 
-/** Adivinha qual coluna é o nome e qual é o telefone pelo cabeçalho. */
+const pareceTelefone = (v: string) => /^\+?[\d\s().-]{8,}$/.test(v)
+
+/**
+ * Adivinha as colunas pelo cabeçalho: nome, telefone principal (WhatsApp de preferência) e um
+ * telefone reserva, usado quando o principal está vazio.
+ */
 export function detectarColunas(colunas: string[], linhas: Record<string, string>[]) {
-  const n = colunas.map(semAcento)
-  const acha = (re: RegExp) => colunas[n.findIndex((c) => re.test(c))]
-  const telefone =
-    acha(/whats|zap|celular|telefone|fone|tel\b|tel\.|cel\b/) ??
-    // Coluna em que a maioria dos valores parece telefone
-    colunas.find((c) => linhas.slice(0, 30).filter((l) => /^\+?[\d\s().-]{8,}$/.test(l[c] ?? '')).length > Math.min(15, linhas.length / 2))
-  const nome = acha(/^nome|cliente|razao|contato/) ?? colunas.find((c) => c !== telefone)
-  return { nome: nome ?? '', telefone: telefone ?? '' }
+  const amostra = linhas.slice(0, 40)
+  // Coluna "de telefone" precisa ter algum valor com cara de telefone (descarta "Link WhatsApp", "Confirmação WhatsApp")
+  const temTelefone = (c: string) => amostra.some((l) => pareceTelefone(l[c] ?? ''))
+  const acha = (padroes: RegExp[], filtro: (c: string) => boolean = () => true, fora: string[] = []) => {
+    for (const re of padroes) {
+      const c = colunas.find((x) => !fora.includes(x) && re.test(semAcento(x)) && filtro(x))
+      if (c) return c
+    }
+    return undefined
+  }
+  const padroesTel = [/whats|zap/, /celular|\bcel\b/, /telefone|fone|\btel\b/]
+  const telefone = acha(padroesTel, temTelefone) ?? colunas.find((c) => amostra.filter((l) => pareceTelefone(l[c] ?? '')).length > Math.min(15, amostra.length / 2))
+  const reserva = telefone ? acha(padroesTel, temTelefone, [telefone]) : undefined
+  const nome = acha([/^nome|nome fantasia/, /empresa|loja|razao|fantasia/, /cliente/, /contato|socio/]) ?? colunas.find((c) => c !== telefone)
+  return { nome: nome ?? '', telefone: telefone ?? '', reserva: reserva ?? '' }
+}
+
+/** Colunas que não vale mostrar para a vendedora: vazias e as de controle que o painel substitui. */
+export function colunasOcultasPadrao(colunas: string[], linhas: Record<string, string>[]) {
+  const controle = /^(n[ºo°]?\.?|#|item)$|link whats|status do contato|data do contato|proximo passo|situacao do contato/
+  return colunas.filter((c) => controle.test(semAcento(c).trim()) || linhas.every((l) => !l[c]))
+}
+
+/** Acha a vendedora pelo nome escrito no arquivo ou na aba (ex.: "Lista_Jane.xlsx"). */
+export function vendedoraPeloNome<T extends { nome: string }>(textos: string[], vendedoras: T[]) {
+  const alvo = semAcento(textos.join(' ')).replace(/[^a-z0-9]+/g, ' ')
+  const achadas = vendedoras.filter((v) => {
+    const primeiro = semAcento(v.nome).split(/\s+/)[0]
+    return primeiro.length >= 3 && new RegExp(`\\b${primeiro}\\b`).test(alvo)
+  })
+  return achadas.length === 1 ? achadas[0] : undefined
 }
 
 export async function exportarContatos(arquivo: string, contatos: Contato[], equipe: Membro[], checklist: string[], colunasExtras: string[]) {

@@ -4,7 +4,7 @@
  * conectado em Vercel → Storage; sem ele (no computador) ficam em .dados-dev.json.
  *
  * Variáveis de ambiente (Vercel → Settings → Environment Variables):
- *   DONO_USUARIO         seu usuário de login (padrão: dono)
+ *   DONO_USUARIO         opcional: seu usuário de login (padrão: eduardo)
  *   DONO_SENHA_INICIAL   sua senha de primeiro acesso (o painel pede para trocar no primeiro login)
  *   KV_REST_API_URL / KV_REST_API_TOKEN   criadas pela Vercel ao conectar o Upstash Redis
  */
@@ -114,14 +114,32 @@ class Erro extends Error {
   }
 }
 
-const usuarioDono = () => (env.DONO_USUARIO || 'dono').trim().toLowerCase()
+const usuarioDono = () => (env.DONO_USUARIO || 'eduardo').trim().toLowerCase()
+
+/** Equipe atual; nomes e usuários podem ser trocados depois na tela Equipe. */
+const NOMES: Record<Vaga, [nome: string, usuario: string]> = {
+  dono: ['Eduardo Manso', ''],
+  gerente: ['Renata', 'renata'],
+  v1: ['Michelli', 'michelli'],
+  v2: ['Luna', 'luna'],
+  v3: ['Raquel', 'raquel'],
+  v4: ['Milleny', 'milleny'],
+  v5: ['Jane', 'jane'],
+}
 
 function equipePadrao(): Record<Vaga, MembroSalvo> {
-  const nome = (v: Vaga) => (v === 'dono' ? 'Dono' : v === 'gerente' ? 'Gerente' : `Vendedora ${v.slice(1)}`)
   return Object.fromEntries(
     VAGAS.map((v) => [
       v,
-      { vaga: v, papel: v === 'dono' ? 'dono' : v === 'gerente' ? 'gerente' : 'vendedora', nome: nome(v), usuario: v === 'dono' ? usuarioDono() : '', ativo: v === 'dono', trocarSenha: true, versao: 1 },
+      {
+        vaga: v,
+        papel: v === 'dono' ? 'dono' : v === 'gerente' ? 'gerente' : 'vendedora',
+        nome: NOMES[v][0],
+        usuario: v === 'dono' ? usuarioDono() : NOMES[v][1],
+        ativo: v === 'dono',
+        trocarSenha: true,
+        versao: 1,
+      },
     ]),
   ) as Record<Vaga, MembroSalvo>
 }

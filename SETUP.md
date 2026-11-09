@@ -20,18 +20,19 @@ Projeto → **Settings → Environment Variables** → adicione:
 
 | Nome | Valor |
 |---|---|
-| `DONO_USUARIO` | o usuário com que você vai entrar (ex.: `eduardo`), minúsculo e sem espaço |
 | `DONO_SENHA_INICIAL` | uma senha provisória qualquer. No primeiro login o painel pede para você criar a definitiva |
 
+Seu usuário é `eduardo` (para usar outro, crie também `DONO_USUARIO`).
 Depois: aba **Deployments** → no último, menu **⋯ → Redeploy**.
 
 ## 5. Primeiro uso
-1. Abra o link do projeto (ex.: `lemcasa-vendas.vercel.app`) → entre com `DONO_USUARIO` + `DONO_SENHA_INICIAL` → crie sua senha.
-2. Menu **Equipe**: para a gerente e cada vendedora, preencha **nome** e **usuário** → **Salvar** → **Criar acesso**.
-   Aparece a senha de primeiro acesso com uma mensagem pronta: **Copiar mensagem** e mande pelo WhatsApp.
+1. Abra o link do projeto (ex.: `lemcasa-vendas.vercel.app`) → entre com `eduardo` + `DONO_SENHA_INICIAL` → crie sua senha.
+2. Menu **Equipe**: a equipe já vem preenchida (Renata, Michelli, Luna, Raquel, Milleny e Jane; o usuário é o nome em minúsculo).
+   Em cada uma, clique **Criar acesso**. Aparece a senha de primeiro acesso com uma mensagem pronta: **Copiar mensagem** e mande pelo WhatsApp.
 3. No primeiro login cada uma cria a própria senha.
 4. Ainda em Equipe, ajuste os itens do **checklist** se quiser.
-5. Menu **Listas → Subir lista**: escolha a planilha (.xlsx, .csv ou colar do Excel), confira as colunas de nome e telefone, marque as vendedoras → **Distribuir**.
+5. Menu **Listas → Subir lista**: escolha as planilhas (pode selecionar várias). Arquivo com o nome da vendedora (ex.: `Lista_Jane.xlsx`) vai direto para ela; os outros você escolhe para quem vai ou divide entre as 5.
+   O nome do contato sai da coluna **Empresa**/Nome, e o telefone sai do **WhatsApp** (se vazio, do outro telefone). Subindo um arquivo só, dá para ajustar colunas e escolher o que a vendedora vê.
 
 ## Como funciona
 - **Dono** (você): tudo, inclusive criar e desativar acessos.
