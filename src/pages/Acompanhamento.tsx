@@ -3,6 +3,7 @@ import { Download, Search } from 'lucide-react'
 import { useDados } from '../lib/dados'
 import { exportarContatos } from '../lib/planilha'
 import type { Status } from '../lib/tipos'
+import { useOrdemFixa } from '../lib/ordem'
 import { cx, hoje, ORDEM_STATUS, STATUS, VENDEDORAS } from '../lib/utils'
 import { ListaContatos } from '../components/ListaContatos'
 import { Button, PageHeader } from '../components/ui'
@@ -27,10 +28,13 @@ export default function Acompanhamento() {
   const h = hoje()
 
   const daLista = dados.contatos.filter((c) => !lista || c.listaId === lista)
-  const filtrados = filtrarBusca(
+  // Mexidos por último primeiro, mas a ordem fica parada enquanto os filtros não mudam
+  const ordenados = useOrdemFixa(
     daLista.filter((c) => (!vendedora || c.vendedora === vendedora) && (!status || (status === 'atrasado' ? c.retorno && c.retorno <= h && !STATUS[c.status].final : c.status === status))),
-    busca,
-  ).sort((a, b) => (b.atualizadoEm ?? '').localeCompare(a.atualizadoEm ?? ''))
+    `${lista}|${vendedora}|${status}`,
+    (a, b) => (b.atualizadoEm ?? '').localeCompare(a.atualizadoEm ?? ''),
+  )
+  const filtrados = filtrarBusca(ordenados, busca)
 
   const listaAtual = dados.listas.find((l) => l.id === lista)
   const exportar = () =>

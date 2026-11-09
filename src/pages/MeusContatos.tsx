@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Search } from 'lucide-react'
 import { useDados } from '../lib/dados'
 import type { Contato } from '../lib/tipos'
+import { useOrdemFixa } from '../lib/ordem'
 import { hoje, semAcento, STATUS } from '../lib/utils'
 import { ListaContatos } from '../components/ListaContatos'
 import { Tabs } from '../components/ui'
@@ -25,15 +26,14 @@ export default function MeusContatos() {
 
   const meus = dados.contatos.filter((c) => lista === 'todas' || c.listaId === lista)
   const abertos = meus.filter((c) => !STATUS[c.status].final)
-  const retornos = abertos.filter((c) => c.retorno).sort((a, b) => a.retorno!.localeCompare(b.retorno!))
-  const finalizados = meus.filter((c) => STATUS[c.status].final).sort((a, b) => (b.atualizadoEm ?? '').localeCompare(a.atualizadoEm ?? ''))
-  const vencidos = retornos.filter((c) => c.retorno! <= h).length
   const vendas = meus.filter((c) => c.status === 'vendeu').length
 
-  // A ordem da aba "A fazer" só muda quando troca de aba/lista, para o cartão não pular de lugar enquanto ela mexe
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const ordem = useMemo(() => new Map([...abertos].sort((a, b) => prioridade(a, h) - prioridade(b, h)).map((c, i) => [c.id, i])), [aba, lista, dados.listas])
-  const fazer = [...abertos].sort((a, b) => (ordem.get(a.id) ?? 1e9) - (ordem.get(b.id) ?? 1e9))
+  // A ordem só muda ao trocar de aba/lista, para o cartão não pular de lugar enquanto ela mexe
+  const chave = `${aba}|${lista}`
+  const fazer = useOrdemFixa(abertos, chave, (a, b) => prioridade(a, h) - prioridade(b, h))
+  const retornos = useOrdemFixa(abertos.filter((c) => c.retorno), chave, (a, b) => a.retorno!.localeCompare(b.retorno!))
+  const finalizados = useOrdemFixa(meus.filter((c) => STATUS[c.status].final), chave, (a, b) => (b.atualizadoEm ?? '').localeCompare(a.atualizadoEm ?? ''))
+  const vencidos = retornos.filter((c) => c.retorno! <= h).length
 
   const visiveis = filtrarBusca(aba === 'fazer' ? fazer : aba === 'retornos' ? retornos : finalizados, busca)
 
