@@ -8,3 +8,5 @@ tsconfig.tsbuildinfo
 *.local
 .dados-dev.json
 .teste
+.guia
+guia-vendedoras
