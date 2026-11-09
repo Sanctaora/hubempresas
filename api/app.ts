@@ -89,9 +89,19 @@ async function arquivoLocal(): Promise<Kv> {
 }
 
 let kvPronto: Promise<Kv> | undefined
+/** A Vercel cria as variáveis com o prefixo escolhido ao conectar (KV_, STORAGE_…): aceita qualquer um. */
+function credenciaisRedis() {
+  const prefixos = ['KV', 'UPSTASH_REDIS', ...Object.keys(env).filter((k) => k.endsWith('_REST_API_URL')).map((k) => k.slice(0, -'_REST_API_URL'.length))]
+  for (const p of prefixos) {
+    const url = env[`${p}_REST_API_URL`] || env[`${p}_REST_URL`]
+    const token = env[`${p}_REST_API_TOKEN`] || env[`${p}_REST_TOKEN`]
+    if (url && token) return { url, token }
+  }
+  return {}
+}
+
 function kv() {
-  const url = env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL
-  const token = env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN
+  const { url, token } = credenciaisRedis()
   if (!kvPronto) {
     if (url && token) kvPronto = upstash(url, token)
     else if (env.VERCEL) throw new Erro(500, 'Banco não conectado: na Vercel, vá em Storage → Upstash Redis e conecte a este projeto.')
