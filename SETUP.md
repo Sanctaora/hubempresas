@@ -15,18 +15,18 @@ Tudo fica na Vercel: o site, o banco de dados (Upstash Redis, grátis) e o login
 2. Em "Connect to project", marque o `lemcasa-vendas` (todos os ambientes) → **Connect**.
    A Vercel cria sozinha as variáveis `KV_REST_API_URL` e `KV_REST_API_TOKEN`.
 
-## 4. Vercel: seu acesso de dono
+## 4. Vercel: seu acesso (desenvolvedor)
 Projeto → **Settings → Environment Variables** → adicione:
 
 | Nome | Valor |
 |---|---|
-| `DONO_SENHA_INICIAL` | uma senha provisória qualquer. No primeiro login o painel pede para você criar a definitiva |
+| `DEV_SENHA_INICIAL` | uma senha provisória qualquer. No primeiro login o painel pede para você criar a definitiva |
 
-Seu usuário é `eduardo` (para usar outro, crie também `DONO_USUARIO`).
+Seu usuário é `eduardo` (para usar outro, crie também `DEV_USUARIO`).
 Depois: aba **Deployments** → no último, menu **⋯ → Redeploy**.
 
 ## 5. Primeiro uso
-1. Abra o link do projeto (ex.: `lemcasa-vendas.vercel.app`) → entre com `eduardo` + `DONO_SENHA_INICIAL` → crie sua senha.
+1. Abra o link do projeto (ex.: `lemcasa-vendas.vercel.app`) → entre com `eduardo` + `DEV_SENHA_INICIAL` → crie sua senha.
 2. Menu **Equipe**: a equipe já vem preenchida (Renata, Michelli, Luna, Raquel, Milleny e Jane; o usuário é o nome em minúsculo).
    Em cada uma, clique **Criar acesso**. Aparece a senha de primeiro acesso com uma mensagem pronta: **Copiar mensagem** e mande pelo WhatsApp.
 3. No primeiro login cada uma cria a própria senha.
@@ -35,8 +35,8 @@ Depois: aba **Deployments** → no último, menu **⋯ → Redeploy**.
    O nome do contato sai da coluna **Empresa**/Nome, e o telefone sai do **WhatsApp** (se vazio, do outro telefone). Subindo um arquivo só, dá para ajustar colunas e escolher o que a vendedora vê.
 
 ## Como funciona
-- **Dono** (você): tudo, inclusive criar e desativar acessos.
-- **Gerente**: sobe listas, acompanha, baixa Excel, edita o checklist e gera nova senha para vendedora que esquecer.
+- **Desenvolvedor** (você, Eduardo): vê e pode tudo, para dar uma olhada quando quiser.
+- **Gerente** (Renata): toca o dia a dia. Sobe listas, acompanha, baixa Excel, edita o checklist e cuida dos acessos das vendedoras (criar, nova senha, desativar, trocar nome/usuário).
 - **Vendedora**: vê só os contatos dela; marca checklist, situação, data de retorno e observação. Botão de WhatsApp direto no contato.
 - A tela busca novidades sozinha a cada 3 minutos e quando a aba volta a ficar aberta (ou no botão **Atualizar**).
 - Desativar uma pessoa (ou gerar senha nova) derruba na hora o login dela em todos os aparelhos.
@@ -47,4 +47,4 @@ Depois: aba **Deployments** → no último, menu **⋯ → Redeploy**.
 npm install
 npm run dev
 ```
-Sem o Redis, os dados ficam em `.dados-dev.json`. O usuário e a senha de dono vêm do `.env.local` (veja `.env.example`).
+Sem o Redis, os dados ficam em `.dados-dev.json`. O usuário e a senha do desenvolvedor vêm do `.env.local` (veja `.env.example`).

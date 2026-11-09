@@ -13,7 +13,7 @@ const situacao = (m: Membro) =>
       ? { t: 'Aguardando 1º acesso', cls: 'bg-amber-50 text-amber-700' }
       : { t: 'Ativo', cls: 'bg-verde-50 text-verde-700' }
 
-function Linha({ m, souDono, souGerente, onSenha }: { m: Membro; souDono: boolean; souGerente: boolean; onSenha: (m: Membro, senha: string) => void }) {
+function Linha({ m, souDev, souGerente, onSenha }: { m: Membro; souDev: boolean; souGerente: boolean; onSenha: (m: Membro, senha: string) => void }) {
   const { setDados } = useDados()
   const [nome, setNome] = useState(m.nome)
   const [usuario, setUsuario] = useState(m.usuario)
@@ -44,8 +44,10 @@ function Linha({ m, souDono, souGerente, onSenha }: { m: Membro; souDono: boolea
 
   const sujo = nome !== m.nome || usuario !== m.usuario
   const s = situacao(m)
-  const podeSenha = m.vaga !== 'dono' && (souDono || (souGerente && m.papel === 'vendedora'))
-  const papel = m.papel === 'dono' ? 'Dono' : m.papel === 'gerente' ? 'Gerente' : 'Vendedora'
+  // A gerente cuida das vendedoras; o desenvolvedor pode tudo
+  const podeEditar = souDev || (souGerente && m.papel === 'vendedora')
+  const podeSenha = m.vaga !== 'dev' && podeEditar
+  const papel = m.papel === 'dev' ? 'Desenvolvedor' : m.papel === 'gerente' ? 'Gerente' : 'Vendedora'
 
   return (
     <div className="rounded-xl border border-slate-200 p-3">
@@ -54,21 +56,21 @@ function Linha({ m, souDono, souGerente, onSenha }: { m: Membro; souDono: boolea
         <Badge className={s.cls}>{s.t}</Badge>
       </div>
       <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-        <input className="input" value={nome} disabled={!souDono} onChange={(e) => setNome(e.target.value)} placeholder="Nome" aria-label="Nome" />
-        <input className="input" value={usuario} disabled={!souDono} onChange={(e) => setUsuario(e.target.value.toLowerCase().replace(/\s/g, ''))} placeholder="usuário (ex.: ana)" aria-label="Usuário" autoCapitalize="none" />
+        <input className="input" value={nome} disabled={!podeEditar} onChange={(e) => setNome(e.target.value)} placeholder="Nome" aria-label="Nome" />
+        <input className="input" value={usuario} disabled={!podeEditar} onChange={(e) => setUsuario(e.target.value.toLowerCase().replace(/\s/g, ''))} placeholder="usuário (ex.: ana)" aria-label="Usuário" autoCapitalize="none" />
         <div className="flex flex-wrap gap-1.5">
-          {souDono && sujo && <Button onClick={() => void salvar()} disabled={ocupado}>Salvar</Button>}
+          {podeEditar && sujo && <Button onClick={() => void salvar()} disabled={ocupado}>Salvar</Button>}
           {podeSenha && !sujo && (
             <Button variant="secondary" onClick={() => void gerar()} disabled={ocupado || !m.usuario} title={m.usuario ? '' : 'Defina o usuário e salve primeiro'}>
               <KeyRound size={14} /> {m.temSenha ? 'Nova senha' : 'Criar acesso'}
             </Button>
           )}
-          {souDono && m.vaga !== 'dono' && m.temSenha && !sujo && (
+          {podeSenha && m.temSenha && !sujo && (
             <Button variant="ghost" onClick={() => void ativar(!m.ativo)} disabled={ocupado}>{m.ativo ? 'Desativar' : 'Reativar'}</Button>
           )}
         </div>
       </div>
-      {m.vaga === 'dono' && <p className="mt-1.5 text-xs text-slate-500">Sua senha de primeiro acesso vem da Vercel (DONO_SENHA_INICIAL). Para trocar a sua senha, use “Senha” no menu.</p>}
+      {m.vaga === 'dev' && souDev && <p className="mt-1.5 text-xs text-slate-500">Sua senha de primeiro acesso vem da Vercel (DEV_SENHA_INICIAL). Para trocar a sua senha, use “Senha” no menu.</p>}
       {erro && <p className="mt-1.5 text-xs text-red-600">{erro}</p>}
     </div>
   )
@@ -105,7 +107,7 @@ export default function Equipe() {
   const { dados } = useDados()
   const [nova, setNova] = useState<{ m: Membro; senha: string }>()
   const [copiado, setCopiado] = useState(false)
-  const souDono = dados.eu.papel === 'dono'
+  const souDev = dados.eu.papel === 'dev'
   const mensagem = nova && `Seu acesso ao painel de vendas da LEM CASA:\n${location.origin}\nUsuário: ${nova.m.usuario}\nSenha de primeiro acesso: ${nova.senha}\n(No primeiro login você cria a sua senha.)`
 
   const copiar = async () => {
@@ -115,12 +117,12 @@ export default function Equipe() {
 
   return (
     <>
-      <PageHeader title="Equipe" subtitle={souDono ? 'Os 7 acessos fixos: defina nome e usuário e crie a senha de primeiro acesso' : 'Gere uma nova senha se uma vendedora esquecer a dela'} />
+      <PageHeader title="Equipe" subtitle={souDev ? 'Os 7 acessos fixos: defina nome e usuário e crie a senha de primeiro acesso' : 'Crie o acesso das vendedoras, gere senha nova se alguma esquecer e desative quem sair'} />
       <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Card title="Acessos">
           <div className="space-y-2">
             {(dados.equipe ?? []).map((m) => (
-              <Linha key={m.vaga} m={m} souDono={souDono} souGerente={dados.eu.papel === 'gerente'} onSenha={(mm, senha) => { setCopiado(false); setNova({ m: mm, senha }) }} />
+              <Linha key={m.vaga} m={m} souDev={souDev} souGerente={dados.eu.papel === 'gerente'} onSenha={(mm, senha) => { setCopiado(false); setNova({ m: mm, senha }) }} />
             ))}
           </div>
         </Card>

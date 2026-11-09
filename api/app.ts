@@ -4,8 +4,8 @@
  * conectado em Vercel → Storage; sem ele (no computador) ficam em .dados-dev.json.
  *
  * Variáveis de ambiente (Vercel → Settings → Environment Variables):
- *   DONO_USUARIO         opcional: seu usuário de login (padrão: eduardo)
- *   DONO_SENHA_INICIAL   sua senha de primeiro acesso (o painel pede para trocar no primeiro login)
+ *   DEV_USUARIO         opcional: seu usuário de login (padrão: eduardo)
+ *   DEV_SENHA_INICIAL   sua senha de primeiro acesso (o painel pede para trocar no primeiro login)
  *   KV_REST_API_URL / KV_REST_API_TOKEN   criadas pela Vercel ao conectar o Upstash Redis
  */
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
@@ -13,7 +13,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Config, Contato, Dados, Lista, Membro, Mudancas, Status, Vaga } from '../src/lib/tipos'
 
 const env = process.env
-const VAGAS: Vaga[] = ['dono', 'gerente', 'v1', 'v2', 'v3', 'v4', 'v5']
+const VAGAS: Vaga[] = ['dev', 'gerente', 'v1', 'v2', 'v3', 'v4', 'v5']
 const VENDEDORAS: Vaga[] = ['v1', 'v2', 'v3', 'v4', 'v5']
 const STATUS: Status[] = ['pendente', 'andamento', 'retornar', 'vendeu', 'sem_interesse', 'sem_contato']
 const SESSAO_DIAS = 30
@@ -114,11 +114,11 @@ class Erro extends Error {
   }
 }
 
-const usuarioDono = () => (env.DONO_USUARIO || 'eduardo').trim().toLowerCase()
+const usuarioDev = () => (env.DEV_USUARIO || 'eduardo').trim().toLowerCase()
 
 /** Equipe atual; nomes e usuários podem ser trocados depois na tela Equipe. */
 const NOMES: Record<Vaga, [nome: string, usuario: string]> = {
-  dono: ['Eduardo Manso', ''],
+  dev: ['Eduardo Manso', ''],
   gerente: ['Renata', 'renata'],
   v1: ['Michelli', 'michelli'],
   v2: ['Luna', 'luna'],
@@ -133,10 +133,10 @@ function equipePadrao(): Record<Vaga, MembroSalvo> {
       v,
       {
         vaga: v,
-        papel: v === 'dono' ? 'dono' : v === 'gerente' ? 'gerente' : 'vendedora',
+        papel: v === 'dev' ? 'dev' : v === 'gerente' ? 'gerente' : 'vendedora',
         nome: NOMES[v][0],
-        usuario: v === 'dono' ? usuarioDono() : NOMES[v][1],
-        ativo: v === 'dono',
+        usuario: v === 'dev' ? usuarioDev() : NOMES[v][1],
+        ativo: v === 'dev',
         trocarSenha: true,
         versao: 1,
       },
@@ -154,7 +154,7 @@ const salvarEquipe = async (e: Record<Vaga, MembroSalvo>) => (await kv()).set('e
 
 const publico = ({ senha, versao: _v, ...m }: MembroSalvo): Membro => ({
   ...m,
-  temSenha: Boolean(senha) || (m.vaga === 'dono' && Boolean(env.DONO_SENHA_INICIAL)),
+  temSenha: Boolean(senha) || (m.vaga === 'dev' && Boolean(env.DEV_SENHA_INICIAL)),
 })
 
 const hashSenha = (senha: string) => {
@@ -203,9 +203,9 @@ async function quemEsta(req: IncomingMessage) {
   return { eu: m, equipe, token }
 }
 
-const ehAdmin = (m: MembroSalvo) => m.papel === 'dono' || m.papel === 'gerente'
+const ehAdmin = (m: MembroSalvo) => m.papel === 'dev' || m.papel === 'gerente'
 function exigeAdmin(m: MembroSalvo) {
-  if (!ehAdmin(m)) throw new Erro(403, 'Só o dono e a gerente podem fazer isso.')
+  if (!ehAdmin(m)) throw new Erro(403, 'Só a gerente pode fazer isso.')
 }
 
 // ---------- Listas e contatos ----------
@@ -267,7 +267,7 @@ async function executar(acao: string, b: Corpo, req: IncomingMessage): Promise<R
     const m = Object.values(equipe).find((x) => x.usuario && x.usuario === usuario)
     let ok = false
     if (m?.ativo && m.senha) ok = confere(senha, m.senha)
-    else if (m?.vaga === 'dono' && !m.senha && env.DONO_SENHA_INICIAL) ok = iguais(senha, env.DONO_SENHA_INICIAL)
+    else if (m?.vaga === 'dev' && !m.senha && env.DEV_SENHA_INICIAL) ok = iguais(senha, env.DEV_SENHA_INICIAL)
     if (!m || !ok) throw new Erro(401, 'Usuário ou senha incorretos.')
 
     if (!m.senha) {
@@ -391,9 +391,10 @@ async function executar(acao: string, b: Corpo, req: IncomingMessage): Promise<R
     }
 
     case 'salvarMembro': {
-      if (eu.papel !== 'dono') throw new Erro(403, 'Só o dono altera a equipe.')
       const alvo = equipe[b.vaga as Vaga]
       if (!alvo) throw new Erro(404, 'Acesso não encontrado.')
+      // A gerente cuida das vendedoras; o desenvolvedor pode tudo
+      if (!(eu.papel === 'dev' || (eu.papel === 'gerente' && alvo.papel === 'vendedora'))) throw new Erro(403, 'Você não pode alterar este acesso.')
       if (b.nome !== undefined) alvo.nome = texto(b.nome, 60) || alvo.nome
       if (b.usuario !== undefined) {
         const u = texto(b.usuario, 30).toLowerCase()
@@ -401,7 +402,7 @@ async function executar(acao: string, b: Corpo, req: IncomingMessage): Promise<R
         if (Object.values(equipe).some((x) => x.vaga !== alvo.vaga && x.usuario === u)) throw new Erro(400, `O usuário "${u}" já está em uso.`)
         alvo.usuario = u
       }
-      if (b.ativo !== undefined && alvo.vaga !== 'dono') {
+      if (b.ativo !== undefined && alvo.vaga !== 'dev') {
         alvo.ativo = b.ativo === true
         if (!alvo.ativo) alvo.versao++
       }
@@ -411,8 +412,8 @@ async function executar(acao: string, b: Corpo, req: IncomingMessage): Promise<R
 
     case 'gerarSenha': {
       const alvo = equipe[b.vaga as Vaga]
-      if (!alvo || alvo.vaga === 'dono') throw new Erro(404, 'Acesso não encontrado.')
-      const pode = eu.papel === 'dono' || (eu.papel === 'gerente' && alvo.papel === 'vendedora')
+      if (!alvo || alvo.vaga === 'dev') throw new Erro(404, 'Acesso não encontrado.')
+      const pode = eu.papel === 'dev' || (eu.papel === 'gerente' && alvo.papel === 'vendedora')
       if (!pode) throw new Erro(403, 'Você não pode gerar senha para este acesso.')
       if (!alvo.usuario) throw new Erro(400, 'Defina o usuário antes de gerar a senha.')
       const senha = senhaProvisoria()

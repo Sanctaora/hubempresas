@@ -1,12 +1,12 @@
 /** Tipos compartilhados entre o painel (src) e o servidor (api). */
 
-export type Papel = 'dono' | 'gerente' | 'vendedora'
+export type Papel = 'dev' | 'gerente' | 'vendedora'
 
 /** Os 7 acessos fixos. */
-export const VAGAS = ['dono', 'gerente', 'v1', 'v2', 'v3', 'v4', 'v5'] as const
+export const VAGAS = ['dev', 'gerente', 'v1', 'v2', 'v3', 'v4', 'v5'] as const
 export type Vaga = (typeof VAGAS)[number]
 
-export const papelDaVaga = (v: Vaga): Papel => (v === 'dono' ? 'dono' : v === 'gerente' ? 'gerente' : 'vendedora')
+export const papelDaVaga = (v: Vaga): Papel => (v === 'dev' ? 'dev' : v === 'gerente' ? 'gerente' : 'vendedora')
 
 /** Dados de um acesso como o painel enxerga (sem a senha). */
 export interface Membro {
@@ -60,7 +60,7 @@ export interface Dados {
   config: Config
   listas: Lista[]
   contatos: Contato[]
-  /** Só para dono e gerente. */
+  /** Só para desenvolvedor e gerente. */
   equipe?: Membro[]
 }
 

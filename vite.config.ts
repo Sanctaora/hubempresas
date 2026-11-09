@@ -16,7 +16,7 @@ function apiLocal(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  // O servidor local lê DONO_USUARIO etc. do .env.local, como a Vercel faz com as variáveis do projeto
+  // O servidor local lê DEV_USUARIO etc. do .env.local, como a Vercel faz com as variáveis do projeto
   Object.assign(process.env, loadEnv(mode, process.cwd(), ''))
   return { plugins: [react(), apiLocal()] }
 })
