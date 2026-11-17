@@ -62,6 +62,8 @@ export interface Dados {
   contatos: Contato[]
   /** Só para desenvolvedor e gerente. */
   equipe?: Membro[]
+  /** Pedidos de "Esqueci a senha" que esta pessoa pode atender: vaga → quando pediu. */
+  pedidosSenha?: Partial<Record<Vaga, string>>
 }
 
 /** Campos que a vendedora pode mudar no contato. */

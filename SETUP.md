@@ -39,6 +39,8 @@ Depois: aba **Deployments** → no último, menu **⋯ → Redeploy**.
 - **Vendedora**: vê só os contatos dela; marca checklist, situação, data de retorno e observação. Botão de WhatsApp direto no contato.
 - A tela busca novidades sozinha a cada 3 minutos e quando a aba volta a ficar aberta (ou no botão **Atualizar**).
 - Desativar uma pessoa (ou gerar senha nova) derruba na hora o login dela em todos os aparelhos.
+- **Esqueci a senha** (tela de login): a pessoa digita o usuário e o pedido aparece em vermelho na aba **Equipe**, com o número de pedidos no menu. A Renata atende as vendedoras e o desenvolvedor atende a Renata: é só tocar em **Nova senha** e mandar a mensagem.
+- **Esqueceu a senha do desenvolvedor?** Na Vercel, crie `DEV_RESETAR_SENHA` = `1` → **Redeploy** → entre com `eduardo` + `DEV_SENHA_INICIAL` → crie a senha nova. Depois **apague** `DEV_RESETAR_SENHA` e faça **Redeploy** de novo (enquanto ela existir, a senha provisória continua valendo).
 - `.xls` antigo e `.ods` não são lidos: no Excel use **Salvar como → .xlsx**.
 
 ## Rodar no computador (opcional)

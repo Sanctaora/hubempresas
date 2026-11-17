@@ -51,8 +51,53 @@ export function Login({ onEntrar }: { onEntrar: (m: Membro) => void }) {
         <Button className="w-full py-2.5" disabled={enviando || !usuario || !senha}>{enviando ? 'Entrando…' : 'Entrar'}</Button>
         {erro && <p className="text-center text-xs text-red-600">{erro}</p>}
       </form>
-      <p className="mt-5 text-center text-xs text-slate-400">Esqueceu a senha? Peça uma nova para a gerente.</p>
+      <EsqueciSenha usuarioDigitado={usuario} />
     </Moldura>
+  )
+}
+
+/** Pede senha nova: avisa a gerente no painel, que gera e manda pelo WhatsApp. */
+function EsqueciSenha({ usuarioDigitado }: { usuarioDigitado: string }) {
+  const [aberto, setAberto] = useState(false)
+  const [usuario, setUsuario] = useState('')
+  const [estado, setEstado] = useState<'enviando' | 'pronto'>()
+  const [erro, setErro] = useState<string>()
+
+  const pedir = async (e: FormEvent) => {
+    e.preventDefault()
+    setEstado('enviando')
+    setErro(undefined)
+    try {
+      await api('pedirSenha', { usuario })
+      setEstado('pronto')
+    } catch (e) {
+      setErro((e as Error).message)
+      setEstado(undefined)
+    }
+  }
+
+  if (estado === 'pronto')
+    return (
+      <div className="mt-5 rounded-xl bg-verde-50 p-3 text-center text-sm text-verde-700">
+        <b>Pedido enviado!</b> A gerente foi avisada e vai te mandar uma senha nova pelo WhatsApp.
+      </div>
+    )
+  if (!aberto)
+    return (
+      <button onClick={() => { setUsuario(usuarioDigitado); setAberto(true) }} className="mt-5 w-full text-center text-sm font-semibold text-azul-600 hover:underline">
+        Esqueci a senha
+      </button>
+    )
+  return (
+    <form onSubmit={pedir} className="mt-5 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <p className="text-sm text-slate-600">Digite o seu usuário. A gerente recebe o aviso e te manda uma senha nova pelo WhatsApp.</p>
+      <input className="input" autoCapitalize="none" autoCorrect="off" placeholder="seu usuário" value={usuario} onChange={(e) => setUsuario(e.target.value)} />
+      <div className="flex gap-2">
+        <Button type="button" variant="ghost" className="flex-1" onClick={() => setAberto(false)}>Voltar</Button>
+        <Button className="flex-1" disabled={!usuario.trim() || estado === 'enviando'}>{estado === 'enviando' ? 'Enviando…' : 'Pedir senha nova'}</Button>
+      </div>
+      {erro && <p className="text-center text-xs text-red-600">{erro}</p>}
+    </form>
   )
 }
 

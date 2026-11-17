@@ -3,7 +3,7 @@ import { Copy, KeyRound } from 'lucide-react'
 import { api } from '../lib/api'
 import { useDados } from '../lib/dados'
 import type { Config, Membro } from '../lib/tipos'
-import { cx } from '../lib/utils'
+import { cx, dataHora } from '../lib/utils'
 import { Badge, Button, Card, Modal, PageHeader } from '../components/ui'
 
 const situacao = (m: Membro) =>
@@ -13,7 +13,7 @@ const situacao = (m: Membro) =>
       ? { t: 'Aguardando 1º acesso', cls: 'bg-amber-50 text-amber-700' }
       : { t: 'Ativo', cls: 'bg-verde-50 text-verde-700' }
 
-function Linha({ m, souDev, souGerente, onSenha }: { m: Membro; souDev: boolean; souGerente: boolean; onSenha: (m: Membro, senha: string) => void }) {
+function Linha({ m, souDev, souGerente, pedido, onSenha }: { m: Membro; souDev: boolean; souGerente: boolean; pedido?: string; onSenha: (m: Membro, senha: string) => void }) {
   const { setDados } = useDados()
   const [nome, setNome] = useState(m.nome)
   const [usuario, setUsuario] = useState(m.usuario)
@@ -36,9 +36,14 @@ function Linha({ m, souDev, souGerente, onSenha }: { m: Membro; souDev: boolean;
   const ativar = (ativo: boolean) => rodar(async () => troca((await api<{ membro: Membro }>('salvarMembro', { vaga: m.vaga, ativo })).membro))
   const gerar = () =>
     rodar(async () => {
-      if (m.ativo && !m.trocarSenha && !confirm(`Gerar uma nova senha para ${m.nome}? A senha atual dela para de funcionar.`)) return
+      if (!pedido && m.ativo && !m.trocarSenha && !confirm(`Gerar uma nova senha para ${m.nome}? A senha atual dela para de funcionar.`)) return
       const r = await api<{ senha: string; membro: Membro }>('gerarSenha', { vaga: m.vaga })
       troca(r.membro)
+      setDados((d) => {
+        const pedidosSenha = { ...d.pedidosSenha }
+        delete pedidosSenha[m.vaga]
+        return { ...d, pedidosSenha }
+      })
       onSenha(r.membro, r.senha)
     })
 
@@ -50,10 +55,11 @@ function Linha({ m, souDev, souGerente, onSenha }: { m: Membro; souDev: boolean;
   const papel = m.papel === 'dev' ? 'Desenvolvedor' : m.papel === 'gerente' ? 'Gerente' : 'Vendedora'
 
   return (
-    <div className="rounded-xl border border-slate-200 p-3">
-      <div className="mb-2 flex items-center gap-2">
+    <div id={`acesso-${m.vaga}`} className={cx('rounded-xl border p-3', pedido ? 'border-red-300 bg-red-50/40 ring-2 ring-red-100' : 'border-slate-200')}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{papel}</span>
         <Badge className={s.cls}>{s.t}</Badge>
+        {pedido && <Badge className="bg-red-100 text-red-700">Pediu senha nova · {dataHora(pedido)}</Badge>}
       </div>
       <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
         <input className="input" value={nome} disabled={!podeEditar} onChange={(e) => setNome(e.target.value)} placeholder="Nome" aria-label="Nome" />
@@ -61,7 +67,7 @@ function Linha({ m, souDev, souGerente, onSenha }: { m: Membro; souDev: boolean;
         <div className="flex flex-wrap gap-1.5">
           {podeEditar && sujo && <Button onClick={() => void salvar()} disabled={ocupado}>Salvar</Button>}
           {podeSenha && !sujo && (
-            <Button variant="secondary" onClick={() => void gerar()} disabled={ocupado || !m.usuario} title={m.usuario ? '' : 'Defina o usuário e salve primeiro'}>
+            <Button variant={pedido ? 'primary' : 'secondary'} onClick={() => void gerar()} disabled={ocupado || !m.usuario} title={m.usuario ? '' : 'Defina o usuário e salve primeiro'}>
               <KeyRound size={14} /> {m.temSenha ? 'Nova senha' : 'Criar acesso'}
             </Button>
           )}
@@ -70,7 +76,7 @@ function Linha({ m, souDev, souGerente, onSenha }: { m: Membro; souDev: boolean;
           )}
         </div>
       </div>
-      {m.vaga === 'dev' && souDev && <p className="mt-1.5 text-xs text-slate-500">Sua senha de primeiro acesso vem da Vercel (DEV_SENHA_INICIAL). Para trocar a sua senha, use “Senha” no menu.</p>}
+      {m.vaga === 'dev' && souDev && <p className="mt-1.5 text-xs text-slate-500">Para trocar a sua senha, use “Senha” no menu. Se esquecer: na Vercel, ligue DEV_RESETAR_SENHA=1, entre com a DEV_SENHA_INICIAL e depois apague a variável.</p>}
       {erro && <p className="mt-1.5 text-xs text-red-600">{erro}</p>}
     </div>
   )
@@ -108,7 +114,8 @@ export default function Equipe() {
   const [nova, setNova] = useState<{ m: Membro; senha: string }>()
   const [copiado, setCopiado] = useState(false)
   const souDev = dados.eu.papel === 'dev'
-  const mensagem = nova && `Seu acesso ao painel de vendas da LEM CASA:\n${location.origin}\nUsuário: ${nova.m.usuario}\nSenha de primeiro acesso: ${nova.senha}\n(No primeiro login você cria a sua senha.)`
+  const pedidos = (dados.equipe ?? []).filter((m) => dados.pedidosSenha?.[m.vaga])
+  const mensagem = nova && `Seu acesso ao painel de vendas da LEM CASA:\n${location.origin}\nUsuário: ${nova.m.usuario}\nSenha provisória: ${nova.senha}\n(Ao entrar, o painel pede para você criar a sua senha.)`
 
   const copiar = async () => {
     await navigator.clipboard.writeText(mensagem!)
@@ -118,11 +125,22 @@ export default function Equipe() {
   return (
     <>
       <PageHeader title="Equipe" subtitle={souDev ? 'Os 7 acessos fixos: defina nome e usuário e crie a senha de primeiro acesso' : 'Crie o acesso das vendedoras, gere senha nova se alguma esquecer e desative quem sair'} />
+      {pedidos.length > 0 && (
+        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-4">
+          <p className="font-semibold text-red-700">Pediram senha nova pelo “Esqueci a senha”</p>
+          <p className="mt-0.5 text-sm text-red-700/80">Toque no nome, depois em <b>Nova senha</b>, e mande a mensagem pelo WhatsApp.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {pedidos.map((m) => (
+              <a key={m.vaga} href={`#acesso-${m.vaga}`} className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-red-700 shadow-sm hover:bg-red-100">{m.nome}</a>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Card title="Acessos">
           <div className="space-y-2">
             {(dados.equipe ?? []).map((m) => (
-              <Linha key={m.vaga} m={m} souDev={souDev} souGerente={dados.eu.papel === 'gerente'} onSenha={(mm, senha) => { setCopiado(false); setNova({ m: mm, senha }) }} />
+              <Linha key={m.vaga} m={m} souDev={souDev} souGerente={dados.eu.papel === 'gerente'} pedido={dados.pedidosSenha?.[m.vaga]} onSenha={(mm, senha) => { setCopiado(false); setNova({ m: mm, senha }) }} />
             ))}
           </div>
         </Card>

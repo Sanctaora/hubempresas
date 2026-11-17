@@ -65,6 +65,7 @@ export function Layout({ onSair }: { onSair: () => void }) {
   const [senha, setSenha] = useState(false)
   const [girando, setGirando] = useState(false)
   const admin = dados.eu.papel !== 'vendedora'
+  const pedidos = Object.keys(dados.pedidosSenha ?? {}).length
 
   const atualizar = async () => {
     setGirando(true)
@@ -105,6 +106,7 @@ export function Layout({ onSair }: { onSair: () => void }) {
                   <>
                     {isActive && <span className="absolute bottom-2 left-0 top-2 w-1 rounded-r-full bg-brand-gradient" />}
                     <Icon size={18} className={isActive ? 'text-azul-500' : ''} /> {label}
+                    {to === '/equipe' && pedidos > 0 && <span className="ml-auto rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">{pedidos}</span>}
                   </>
                 )}
               </NavLink>
@@ -135,8 +137,9 @@ export function Layout({ onSair }: { onSair: () => void }) {
       {admin && (
         <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
           {navAdmin.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} className={({ isActive }) => cx('flex flex-col items-center gap-0.5 py-2 text-[11px]', isActive ? 'font-semibold text-brand-600' : 'text-slate-400')}>
+            <NavLink key={to} to={to} end={end} className={({ isActive }) => cx('relative flex flex-col items-center gap-0.5 py-2 text-[11px]', isActive ? 'font-semibold text-brand-600' : 'text-slate-400')}>
               <Icon size={19} />
+              {to === '/equipe' && pedidos > 0 && <span className="absolute left-1/2 top-1 ml-2 rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-4 text-white">{pedidos}</span>}
               {label}
             </NavLink>
           ))}

@@ -6,6 +6,7 @@
  * Variáveis de ambiente (Vercel → Settings → Environment Variables):
  *   DEV_USUARIO         opcional: seu usuário de login (padrão: eduardo)
  *   DEV_SENHA_INICIAL   sua senha de primeiro acesso (o painel pede para trocar no primeiro login)
+ *   DEV_RESETAR_SENHA   =1 só enquanto recupera a senha esquecida: a DEV_SENHA_INICIAL volta a valer (apague depois)
  *   KV_REST_API_URL / KV_REST_API_TOKEN   criadas pela Vercel ao conectar o Upstash Redis
  */
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
@@ -228,6 +229,17 @@ async function carregarListas() {
   return (await (await kv()).get<Lista[]>('listas')) ?? []
 }
 
+/** Pedidos de "Esqueci a senha": vaga → quando pediu. */
+async function carregarPedidos() {
+  return (await (await kv()).get<Partial<Record<Vaga, string>>>('pedidosSenha')) ?? {}
+}
+async function limparPedido(vaga: Vaga) {
+  const pedidos = await carregarPedidos()
+  if (!pedidos[vaga]) return
+  delete pedidos[vaga]
+  await (await kv()).set('pedidosSenha', pedidos)
+}
+
 async function carregarConfig(): Promise<Config> {
   return (await (await kv()).get<Config>('config')) ?? { checklist: CHECKLIST_PADRAO }
 }
@@ -275,20 +287,36 @@ async function executar(acao: string, b: Corpo, req: IncomingMessage): Promise<R
 
     const equipe = await carregarEquipe()
     const m = Object.values(equipe).find((x) => x.usuario && x.usuario === usuario)
+    // Esqueceu a senha de desenvolvedor: com DEV_RESETAR_SENHA=1 na Vercel, a DEV_SENHA_INICIAL volta a valer
+    const resetDev = m?.vaga === 'dev' && env.DEV_RESETAR_SENHA === '1' && Boolean(env.DEV_SENHA_INICIAL)
     let ok = false
+    let inicial = false
     if (m?.ativo && m.senha) ok = confere(senha, m.senha)
-    else if (m?.vaga === 'dev' && !m.senha && env.DEV_SENHA_INICIAL) ok = iguais(senha, env.DEV_SENHA_INICIAL)
+    if (!ok && m?.vaga === 'dev' && (!m.senha || resetDev) && env.DEV_SENHA_INICIAL) ok = inicial = iguais(senha, env.DEV_SENHA_INICIAL)
     if (!m || !ok) throw new Erro(401, 'Usuário ou senha incorretos.')
 
-    if (!m.senha) {
+    if (inicial) {
+      // Entrou com a senha provisória: pede senha nova e derruba os logins antigos
       m.senha = hashSenha(senha)
       m.trocarSenha = true
+      m.versao++
       await salvarEquipe(equipe)
     }
     await store.del(`tent:${usuario}`)
+    await limparPedido(m.vaga) // lembrou a senha: o pedido some
     const token = randomBytes(32).toString('base64url')
     await store.set(`sess:${token}`, { vaga: m.vaga, versao: m.versao }, SESSAO_DIAS * 86400)
     return { body: { eu: publico(m) }, cookie: cookieSessao(req, token, SESSAO_DIAS * 86400) }
+  }
+
+  if (acao === 'pedirSenha') {
+    // Sem login. Responde sempre igual, para não revelar quais usuários existem.
+    const usuario = texto(b.usuario, 60).toLowerCase()
+    if (!usuario) throw new Erro(400, 'Digite o seu usuário.')
+    if ((await store.incr(`pedido:${usuario}`, 15 * 60)) > 5) throw new Erro(429, 'Pedido já enviado. Aguarde a gerente.')
+    const m = Object.values(await carregarEquipe()).find((x) => x.usuario === usuario)
+    if (m && m.vaga !== 'dev') await store.set('pedidosSenha', { ...(await carregarPedidos()), [m.vaga]: new Date().toISOString() })
+    return { body: { ok: true } }
   }
 
   if (acao === 'sair') {
@@ -317,7 +345,12 @@ async function executar(acao: string, b: Corpo, req: IncomingMessage): Promise<R
       const [config, todas] = await Promise.all([carregarConfig(), carregarListas()])
       const { listas, contatos } = await contatosDe(todas, ehAdmin(eu) ? undefined : eu.vaga)
       const dados: Dados = { eu: publico(eu), config, listas, contatos }
-      if (ehAdmin(eu)) dados.equipe = VAGAS.map((v) => publico(equipe[v]))
+      if (ehAdmin(eu)) {
+        dados.equipe = VAGAS.map((v) => publico(equipe[v]))
+        // A gerente atende as vendedoras; o desenvolvedor vê todos (inclusive o da gerente)
+        const pedidos = await carregarPedidos()
+        dados.pedidosSenha = Object.fromEntries(Object.entries(pedidos).filter(([v]) => eu.papel === 'dev' || equipe[v as Vaga]?.papel === 'vendedora'))
+      }
       return { body: dados }
     }
 
@@ -432,6 +465,7 @@ async function executar(acao: string, b: Corpo, req: IncomingMessage): Promise<R
       alvo.ativo = true
       alvo.versao++
       await salvarEquipe(equipe)
+      await limparPedido(alvo.vaga)
       return { body: { senha, membro: publico(alvo) } }
     }
 
